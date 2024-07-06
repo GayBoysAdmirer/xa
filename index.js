@@ -452,14 +452,5 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Serwer Express działa na porcie ${PORT}`);
 });
-setInterval(
-    () => {
-        fetch("https://replit.com/@erykos0797/Nodejs")
-            .then((res) => res.text())
-            .then(console.log)
-            .catch(console.error);
-    },
-    5 * 60 * 1000,
-); // co 5 minut
 
 client.login(token);
