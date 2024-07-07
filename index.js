@@ -1,5 +1,4 @@
-
-const monitor = new cronitor.Monitor("YW30QO");
+require('dotenv').config();
 const express = require("express");
 const {
     Client,
@@ -12,7 +11,6 @@ const {
     PermissionsBitField,
     ChannelType,
 } = require("discord.js");
-const { token, ownerId } = require("./config.json");
 const fs = require("fs");
 
 const app = express();
@@ -33,9 +31,6 @@ const priorityRoles = [
     "1165383754211131473",
 ];
 const priorityServerId = "1094726552610156688";
-monitor.ping({ message: "Alive" });
-monitor.ping({ count: 100, error_count: 3 });
-
 // Lista emoji dla priorytetowego serwera
 const priorityEmojis = [
     { id: "1095004009414283314", name: "archsp1" },
@@ -243,7 +238,7 @@ client.on("messageCreate", async (message) => {
             const args = message.content.split(" ");
             const userId = args[1].replace(/[<@!>]/g, "");
 
-            if (message.author.id === ownerId) {
+            if (message.author.id === process.env.OWNER_ID) {
                 addRaidManager(message.guild.id, userId);
                 saveRaidManagers();
                 message.reply(
@@ -258,7 +253,7 @@ client.on("messageCreate", async (message) => {
             const args = message.content.split(" ");
             const userId = args[1].replace(/[<@!>]/g, "");
 
-            if (message.author.id === ownerId) {
+            if (message.author.id === process.env.OWNER_ID) {
                 removeRaidManager(message.guild.id, userId);
                 saveRaidManagers();
                 message.reply(
@@ -453,4 +448,6 @@ app.listen(PORT, () => {
     console.log(`Serwer Express działa na porcie ${PORT}`);
 });
 
-client.login(token);
+client.login(process.env.DISCORD_BOT_TOKEN)
+  .then(() => console.log('Successfully logged in'))
+  .catch(err => console.error('Failed to login:', err));
