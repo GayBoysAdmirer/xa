@@ -1,4 +1,4 @@
-const cronitor = require("cronitor")("591672af7d28449499c9877501f59576");
+
 const monitor = new cronitor.Monitor("YW30QO");
 const express = require("express");
 const {
