@@ -447,6 +447,9 @@ app.listen(PORT, () => {
     console.log(`Serwer Express działa na porcie ${PORT}`);
 });
 
+console.log('Discord Bot Token:', process.env.DISCORD_BOT_TOKEN); // Dodane logowanie
+console.log('Owner ID:', process.env.OWNER_ID); // Dodane logowanie
+
 client.login(process.env.DISCORD_BOT_TOKEN)
   .then(() => console.log('Successfully logged in'))
   .catch(err => console.error('Failed to login:', err));
