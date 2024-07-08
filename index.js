@@ -314,7 +314,7 @@ client.on("messageCreate", async (message) => {
             await raidChannel.send({ components: [outRow] });
 
             await raidChannel.send({
-                content: `Prio for up to 12h before raid.`,
+                content: `Prio for <@&1094860225955242115>, <@&1165383754211131473>, <@&1124781716700143717> up to 12h before raid.`,
             });
 
             client.embedMessageId = embedMessage.id;
