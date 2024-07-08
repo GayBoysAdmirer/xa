@@ -454,11 +454,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 });
             }
 
-            const emojiIndex = parseInt(interaction.customId.replace("join", "")) - 1;
-            if (emojiIndex < 0 || emojiIndex >= emojis.length) {
-                console.error('Nieprawidłowy indeks emoji:', emojiIndex);
-                return interaction.reply({ content: 'Wystąpił błąd podczas przetwarzania Twojej prośby. Spróbuj ponownie.', ephemeral: true });
-            }
+            const emojis = interaction.guild.id === priorityServerId ? priorityEmojis : defaultEmojis;
+if (!emojis || emojis.length === 0) {
+    console.error('Tablica emojis jest pusta lub niezdefiniowana.');
+    return interaction.reply({ content: 'Wystąpił błąd podczas przetwarzania Twojej prośby. Spróbuj ponownie.', ephemeral: true });
+}
+
+const emojiIndex = parseInt(interaction.customId.replace("join", "")) - 1;
+if (emojiIndex < 0 || emojiIndex >= emojis.length) {
+    console.error('Nieprawidłowy indeks emoji:', emojiIndex);
+    return interaction.reply({ content: 'Wystąpił błąd podczas przetwarzania Twojej prośby. Spróbuj ponownie.', ephemeral: true });
+}
             const emoji = emojis[emojiIndex];
             const isReservedEmojiPollu = reservedEmojisPollu.includes(emoji.name);
             const isReservedEmojiArma = reservedEmojisArma.includes(emoji.name);
