@@ -145,8 +145,12 @@ client.on("messageCreate", async (message) => {
             if (isPriorityRaid && message.guild.id === priorityServerId) {
                 if (akt === "a8") {
                     parentId = "1199378967300419725"; // ID kategorii dla "a8"
-                } else if (akt === "a9") {
-                    parentId = "1126289273780441190"; // ID kategorii dla "a9"
+                } else if (akt === "pollu") {
+                    parentId = "1126289273780441190"; // ID kategorii dla "pollu"
+                } else if (akt === "arma") {
+                    parentId = "1126289273780441190"; // ID kategorii dla "arma"
+                } else if (akt === "carma") {
+                    parentId = "1139537965111054496"; // ID kategorii dla "carma"
                 } else {
                     parentId = "1094734625298976899"; // Domyślne ID kategorii dla priorytetowego serwera
                 }
@@ -179,16 +183,88 @@ client.on("messageCreate", async (message) => {
             }
 
             const embed = new EmbedBuilder()
-                .setTitle(`Raid: ${formattedRaidName}`)
-                .setDescription(`**When?** ${raidDay} ${raidTime}`)
-                .setColor(0xff0000);
+    .setTitle(`Raid: ${formattedRaidName}`)
+    .setDescription(
+        `**Lider/Leader:** <@${message.author.id}>\n\n` +
+        `**Kiedy?/When?:** ${raidDay} ${raidTime}\n\n` +
+        `**Channel:** 5\n\n` +
+        `**Wymagania/Requirements:** C80 with huge damage, C90\n\n` +
+        `<:emoji1:1115315303283441814> <:emoji2:1115315272350453820> <:emoji3:1165642749110919178>\n\n` +
+        `---\n` // Dodana linia oddzielająca
+    )
+    .setColor(0xff0000);
 
-            for (let i = 1; i <= positions; i++) {
-                embed.addFields({
-                    name: `${i}.`,
-                    value: "\u200B",
-                    inline: false,
-                });
+            // Ustawienie pozycji na podstawie typu raidu
+            if (akt === "arma") {
+                for (let i = 1; i <= positions - 2; i++) {
+                    embed.addFields({
+                        name: `${i}.`,
+                        value: "\u200B",
+                        inline: false,
+                    });
+                }
+                embed.addFields(
+                    {
+                        name: `${positions - 1}. (WK)`,
+                        value: "\u200B",
+                        inline: false,
+                    },
+                    {
+                        name: `${positions}. (CRUSS)`,
+                        value: "\u200B",
+                        inline: false,
+                    },
+                    {
+                        name: `Rezerwowi/Reserves:`,
+                        value: "\u200B",
+                        inline: false,
+                    }
+                );
+            } else if (akt === "pollu") {
+                for (let i = 1; i <= positions - 3; i++) {
+                    embed.addFields({
+                        name: `${i}.`,
+                        value: "\u200B",
+                        inline: false,
+                    });
+                }
+                embed.addFields(
+                    {
+                        name: `${positions - 2}. (WK)`,
+                        value: "\u200B",
+                        inline: false,
+                    },
+                    {
+                        name: `${positions - 1}. (CRUSS)`,
+                        value: "\u200B",
+                        inline: false,
+                    },
+                    {
+                        name: `${positions}. (SERKER)`,
+                        value: "\u200B",
+                        inline: false,
+                    },
+                    {
+                        name: `Rezerwowi/Reserves:`,
+                        value: "\u200B",
+                        inline: false,
+                    }
+                );
+            } else {
+                for (let i = 1; i <= positions; i++) {
+                    embed.addFields({
+                        name: `${i}.`,
+                        value: "\u200B",
+                        inline: false,
+                    });
+                }
+                embed.addFields(
+                    {
+                        name: `Rezerwowi/Reserves:`,
+                        value: "\u200B",
+                        inline: false,
+                    }
+                );
             }
 
             const emojis =
@@ -231,6 +307,10 @@ client.on("messageCreate", async (message) => {
                 await raidChannel.send({ components: [row] });
             }
             await raidChannel.send({ components: [outRow] });
+
+            await raidChannel.send({
+                content: `Prio for <@&1094860225955242115>, <@&1165383754211131473>, <@&1124781716700143717> up to 12h before raid.`,
+            });
 
             client.embedMessageId = embedMessage.id;
         } else if (message.content.startsWith("!addmanager")) {
@@ -280,6 +360,7 @@ client.on("messageCreate", async (message) => {
                 } else {
                     message.reply("Użytkownik nie jest zapisany na liście.");
                 }
+                await checkAndMoveReserves(raidMessage, raidChannel);
             } else {
                 message.reply(
                     "Nie masz uprawnień do usuwania użytkowników z listy.",
@@ -294,8 +375,44 @@ client.on("messageCreate", async (message) => {
 
             priorityChannels.delete(message.channel.id);
             message.reply(
-                "Priorytet został usunięty. Teraz każdy może się zapisać.",
+                "Priorytet został usunięty. Teraz każdy może się zapisać. <@&1096804534409494598>",
             );
+        } else if (message.content.startsWith("!alt")) {
+            const args = message.content.split(" ");
+            const nick = args[1];
+            const value = args[2];
+
+            if (isRaidManager(message.guild.id, message.author.id)) {
+                const raidChannel = message.channel;
+                const raidMessage = await raidChannel.messages.fetch(
+                    client.embedMessageId,
+                );
+                const embed = raidMessage.embeds[0];
+                const fields = embed.fields;
+
+                let emptyFieldIndex = -1;
+
+                for (let i = 0; i < fields.length; i++) {
+                    if (fields[i].value === "\u200B" && emptyFieldIndex === -1) {
+                        emptyFieldIndex = i;
+                    }
+                }
+
+                if (emptyFieldIndex !== -1) {
+                    fields[emptyFieldIndex].value = `${nick} (${value})`;
+                    await raidMessage.edit({ embeds: [embed] });
+                    message.reply(
+                        `Postać ${nick} (${value}) została dodana do listy.`,
+                    );
+                } else {
+                    message.reply("Brak wolnych miejsc na liście.");
+                }
+                await checkAndMoveReserves(raidMessage, raidChannel);
+            } else {
+                message.reply(
+                    "Nie masz uprawnień do ręcznego dodawania postaci.",
+                );
+            }
         }
     } catch (error) {
         console.error(error);
@@ -313,6 +430,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
         const fields = embed.fields;
         const user = `<@${interaction.user.id}>`;
 
+        const emojis =
+            interaction.guild.id === priorityServerId
+                ? priorityEmojis
+                : defaultEmojis;
+
+        const reservedEmojisPollu = ["archsp4", "warsp3", "warsp4"];
+        const reservedEmojisArma = ["archsp4", "warsp3"];
+
+        const reservedIndicesPollu = [fields.length - 4, fields.length - 3, fields.length - 2];
+        const reservedIndicesArma = [fields.length - 3, fields.length - 2];
+
         if (interaction.customId.startsWith("join")) {
             if (
                 priorityChannels.has(interaction.channelId) &&
@@ -326,63 +454,71 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 });
             }
 
-            let alreadyJoined = false;
-            let emptyFieldIndex = -1;
+            const emojiIndex = parseInt(interaction.customId.replace("join", "")) - 1;
+            const emoji = emojis[emojiIndex];
+            const isReservedEmojiPollu = reservedEmojisPollu.includes(emoji.name);
+            const isReservedEmojiArma = reservedEmojisArma.includes(emoji.name);
 
+            let userFieldIndex = -1;
             for (let i = 0; i < fields.length; i++) {
                 if (fields[i].value.includes(user)) {
-                    alreadyJoined = true;
+                    userFieldIndex = i;
                     break;
-                } else if (
-                    fields[i].value === "\u200B" &&
-                    emptyFieldIndex === -1
-                ) {
-                    emptyFieldIndex = i;
                 }
             }
 
-            if (alreadyJoined) {
-                await interaction.reply({
-                    content: "Jesteś już zapisany!",
-                    ephemeral: true,
-                });
-            } else if (emptyFieldIndex !== -1) {
-                const emoji =
-                    interaction.guild.id === priorityServerId
-                        ? priorityEmojis[
-                              parseInt(
-                                  interaction.customId.replace("join", ""),
-                              ) - 1
-                          ]
-                        : defaultEmojis[
-                              parseInt(
-                                  interaction.customId.replace("join", ""),
-                              ) - 1
-                          ];
-                fields[emptyFieldIndex].value =
-                    `${user} <:${emoji.name}:${emoji.id}>`;
+            if (userFieldIndex !== -1) {
+                fields[userFieldIndex].value += ` <:${emoji.name}:${emoji.id}>`;
                 await message.edit({ embeds: [embed] });
                 await interaction.deferUpdate();
+
+                // Sprawdź, czy użytkownik na liście rezerwowej dodał zarezerwowaną emotkę
+                await checkAndMoveReserves(message, interaction.channel, true);
             } else {
-                await interaction.reply({
-                    content: "Brak wolnych miejsc!",
-                    ephemeral: true,
-                });
-            }
-        } else if (interaction.customId === "out") {
-            let removed = false;
-            for (let i = 0; i < fields.length; i++) {
-                if (fields[i].value.includes(user)) {
-                    fields[i].value = "\u200B";
-                    removed = true;
-                    break;
+                let emptyFieldIndex = -1;
+                for (let i = 0; i < fields.length; i++) {
+                    if (fields[i].value === "\u200B" && !reservedIndicesPollu.includes(i) && !reservedIndicesArma.includes(i)) {
+                        emptyFieldIndex = i;
+                        break;
+                    }
                 }
-            }
-            if (removed) {
+
+                if (interaction.channel.name.includes("arma") && isReservedEmojiArma) {
+                    const reservedIndex = reservedIndicesArma[reservedEmojisArma.indexOf(emoji.name)];
+                    if (fields[reservedIndex].value === "\u200B") {
+                        fields[reservedIndex].value = `${user} <:${emoji.name}:${emoji.id}>`;
+                    } else {
+                        const reserveField = fields.find(field => field.name === 'Rezerwowi/Reserves:');
+                        reserveField.value += `\n${user} <:${emoji.name}:${emoji.id}>`;
+                    }
+                } else if (interaction.channel.name.includes("pollu") && isReservedEmojiPollu) {
+                    const reservedIndex = reservedIndicesPollu[reservedEmojisPollu.indexOf(emoji.name)];
+                    if (fields[reservedIndex].value === "\u200B") {
+                        fields[reservedIndex].value = `${user} <:${emoji.name}:${emoji.id}>`;
+                    } else {
+                        const reserveField = fields.find(field => field.name === 'Rezerwowi/Reserves:');
+                        reserveField.value += `\n${user} <:${emoji.name}:${emoji.id}>`;
+                    }
+                } else if (emptyFieldIndex !== -1) {
+                    fields[emptyFieldIndex].value = `${user} <:${emoji.name}:${emoji.id}>`;
+                    await interaction.channel.send({
+                        content: `${user} został zapisany!`,
+                    });
+                } else {
+                    // Dodanie do rezerwowych
+                    const reserveField = fields.find(field => field.name === 'Rezerwowi/Reserves:');
+                    reserveField.value += `\n${user} <:${emoji.name}:${emoji.id}>`;
+                }
+
                 await message.edit({ embeds: [embed] });
-                await interaction.reply({
-                    content: "Zostałeś wypisany!",
-                    ephemeral: true,
+                await interaction.deferUpdate();
+            }
+
+        } else if (interaction.customId === "out") {
+            const success = await removeUserFromList(message, interaction.user.id);
+            if (success) {
+                await interaction.channel.send({
+                    content: `${user} wypisał się! Znajdź zastępstwo jeżeli wypisałeś się 6 godzin przed maratonem.`,
                 });
             } else {
                 await interaction.reply({
@@ -390,11 +526,134 @@ client.on(Events.InteractionCreate, async (interaction) => {
                     ephemeral: true,
                 });
             }
+            await checkAndMoveReserves(message, interaction.channel);
         }
     } catch (error) {
         console.error(error);
     }
 });
+
+async function removeUserFromList(message, userId) {
+    const embed = message.embeds[0];
+    const fields = embed.fields;
+    const user = `<@${userId}>`;
+
+    let removed = false;
+    let emptyFieldIndex = -1;
+
+    for (let i = 0; i < fields.length; i++) {
+        if (fields[i].value.includes(user)) {
+            fields[i].value = "\u200B";
+            removed = true;
+            emptyFieldIndex = i;
+            break;
+        }
+    }
+
+    if (removed) {
+        await message.edit({ embeds: [embed] });
+        return true;
+    } else {
+        return false;
+    }
+}
+
+async function checkAndMoveReserves(message, channel, checkReservedEmojis = false) {
+    const embed = message.embeds[0];
+    const fields = embed.fields;
+
+    let emptyFieldIndex = -1;
+    for (let i = 0; i < fields.length; i++) {
+        if (fields[i].value === "\u200B") {
+            emptyFieldIndex = i;
+            break;
+        }
+    }
+
+    if (emptyFieldIndex !== -1) {
+        let reservesStartIndex = fields.findIndex(field => field.name === 'Rezerwowi/Reserves:');
+        if (reservesStartIndex !== -1) {
+            const reserveField = fields[reservesStartIndex];
+            const reserveLines = reserveField.value.split("\n").filter(line => line.trim() !== "\u200B");
+
+            if (reserveLines.length > 0) {
+                const reservedEmojisPollu = ["archsp4", "warsp3", "warsp4"];
+                const reservedEmojisArma = ["archsp4", "warsp3"];
+                const reservedIndicesPollu = [fields.length - 4, fields.length - 3, fields.length - 2];
+                const reservedIndicesArma = [fields.length - 3, fields.length - 2];
+                const reservedIndexToEmojiPollu = {
+                    [fields.length - 4]: "archsp4",
+                    [fields.length - 3]: "warsp3",
+                    [fields.length - 2]: "warsp4"
+                };
+                const reservedIndexToEmojiArma = {
+                    [fields.length - 3]: "archsp4",
+                    [fields.length - 2]: "warsp3"
+                };
+
+                let nextReserveUser = null;
+
+                if (channel.name.includes("arma") && reservedIndicesArma.includes(emptyFieldIndex)) {
+                    const emojiName = reservedIndexToEmojiArma[emptyFieldIndex];
+                    nextReserveUser = reserveLines.find(line => line.includes(emojiName));
+                    if (nextReserveUser) {
+                        reserveLines.splice(reserveLines.indexOf(nextReserveUser), 1);
+                    }
+                } else if (channel.name.includes("pollu") && reservedIndicesPollu.includes(emptyFieldIndex)) {
+                    const emojiName = reservedIndexToEmojiPollu[emptyFieldIndex];
+                    nextReserveUser = reserveLines.find(line => line.includes(emojiName));
+                    if (nextReserveUser) {
+                        reserveLines.splice(reserveLines.indexOf(nextReserveUser), 1);
+                    }
+                }
+
+                if (!nextReserveUser && !reservedIndicesPollu.includes(emptyFieldIndex) && !reservedIndicesArma.includes(emptyFieldIndex)) {
+                    nextReserveUser = reserveLines.shift();
+                }
+
+                if (nextReserveUser) {
+                    fields[emptyFieldIndex].value = nextReserveUser;
+                    reserveField.value = reserveLines.length > 0 ? reserveLines.join("\n") : "\u200B";
+
+                    await message.edit({ embeds: [embed] });
+                    await message.channel.send({
+                        content: `${nextReserveUser.split(' ')[0]} trafiasz na główną listę!`,
+                    });
+                }
+            }
+        }
+    } else if (checkReservedEmojis) {
+        const reservedEmojisPollu = ["archsp4", "warsp3", "warsp4"];
+        const reservedEmojisArma = ["archsp4", "warsp3"];
+        const reservedIndexToEmojiPollu = {
+            [fields.length - 4]: "archsp4",
+            [fields.length - 3]: "warsp3",
+            [fields.length - 2]: "warsp4"
+        };
+        const reservedIndexToEmojiArma = {
+            [fields.length - 3]: "archsp4",
+            [fields.length - 2]: "warsp3"
+        };
+
+        for (let i = 0; i < fields.length; i++) {
+            if (fields[i].value !== "\u200B" && fields[i].value.split(" ").length > 1) {
+                const emojis = fields[i].value.split(" ").slice(1);
+                for (let j = 0; j < emojis.length; j++) {
+                    if (
+                        (channel.name.includes("arma") && reservedEmojisArma.includes(emojis[j].split(":")[1])) ||
+                        (channel.name.includes("pollu") && reservedEmojisPollu.includes(emojis[j].split(":")[1]))
+                    ) {
+                        let userFieldIndex = i;
+                        const user = fields[userFieldIndex].value.split(" ")[0];
+                        fields[userFieldIndex].value = fields[userFieldIndex].value.split(" ").slice(0, 1).join(" ");
+                        await checkAndMoveReserves(message, channel);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+}
 
 function isRaidManager(guildId, userId) {
     if (!raidManagers.has(guildId)) {
@@ -447,7 +706,7 @@ app.listen(PORT, () => {
     console.log(`Serwer Express działa na porcie ${PORT}`);
 });
 
-
+require('dotenv').config();
 
 client.login(process.env.DISCORD_BOT_TOKEN)
   .then(() => console.log('Successfully logged in'))
