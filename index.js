@@ -431,11 +431,15 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         let message;
         try {
-            message = await interaction.channel.messages.fetch(
-                client.embedMessageId,
-            );
+            message = await interaction.channel.messages.fetch(client.embedMessageId);
         } catch (error) {
             console.error("Failed to fetch message:", error);
+            if (error.code === 10008) {
+                return interaction.reply({
+                    content: "Wiadomość nie istnieje lub została usunięta.",
+                    ephemeral: true,
+                });
+            }
             return interaction.reply({
                 content: "Wystąpił błąd podczas próby pobrania wiadomości.",
                 ephemeral: true,
@@ -536,6 +540,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 await interaction.channel.send({
                     content: `${user} wypisał się! Znajdź zastępstwo jeżeli wypisałeś się 6 godzin przed maratonem.`,
                 });
+                saveRaidLists(); // Save after removing a user from the list
             } else {
                 await interaction.reply({
                     content: "Nie jesteś zapisany!",
@@ -546,12 +551,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
     } catch (error) {
         console.error(error);
-        interaction.reply({
-            content: "Wystąpił nieoczekiwany błąd.",
-            ephemeral: true,
-        });
+        if (!interaction.replied) {
+            try {
+                await interaction.reply({
+                    content: "Wystąpił nieoczekiwany błąd.",
+                    ephemeral: true,
+                });
+            } catch (replyError) {
+                console.error("Failed to reply to interaction:", replyError);
+            }
+        }
     }
 });
+
 
 async function removeUserFromList(message, userId) {
     const embed = message.embeds[0];
