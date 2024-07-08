@@ -12,6 +12,7 @@ const {
 } = require("discord.js");
 const fs = require("fs");
 
+
 const app = express();
 const client = new Client({
     intents: [
@@ -119,7 +120,9 @@ const defaultEmojis = [
 client.once("ready", () => {
     console.log(`Zalogowano jako ${client.user.tag}!`);
     loadRaidManagers();
+    loadRaidLists(); // Load raid lists when bot starts
 });
+
 
 client.on("messageCreate", async (message) => {
     try {
@@ -183,16 +186,16 @@ client.on("messageCreate", async (message) => {
             }
 
             const embed = new EmbedBuilder()
-    .setTitle(`Raid: ${formattedRaidName}`)
-    .setDescription(
-        `**Lider/Leader:** <@${message.author.id}>\n\n` +
-        `**Kiedy?/When?:** ${raidDay} ${raidTime}\n\n` +
-        `**Channel:** 5\n\n` +
-        `**Wymagania/Requirements:** C80 with huge damage, C90\n\n` +
-        `<:emoji1:1115315303283441814> <:emoji2:1115315272350453820> <:emoji3:1165642749110919178>\n\n` +
-        `---\n` // Dodana linia oddzielająca
-    )
-    .setColor(0xff0000);
+                .setTitle(`Raid: ${formattedRaidName}`)
+                .setDescription(
+                    `**Lider/Leader:** <@${message.author.id}>\n\n` +
+                    `**Kiedy?/When?:** ${raidDay} ${raidTime}\n\n` +
+                    `**Channel:** 5\n\n` +
+                    `**Wymagania/Requirements:** C80 with huge damage, C90\n\n` +
+                    `<:emoji1:1115315303283441814> <:emoji2:1115315272350453820> <:emoji3:1165642749110919178>\n\n` +
+                    `---\n` // Dodana linia oddzielająca
+                )
+                .setColor(0xff0000);
 
             // Ustawienie pozycji na podstawie typu raidu
             if (akt === "arma") {
@@ -302,6 +305,8 @@ client.on("messageCreate", async (message) => {
             );
 
             const embedMessage = await raidChannel.send({ embeds: [embed] });
+            client.embedMessageId = embedMessage.id;
+            saveRaidLists();
 
             for (const row of actionRows) {
                 await raidChannel.send({ components: [row] });
@@ -357,6 +362,7 @@ client.on("messageCreate", async (message) => {
                     message.reply(
                         `Użytkownik <@${userId}> został usunięty z listy.`,
                     );
+                    saveRaidLists(); // Save after removing a user from the list
                 } else {
                     message.reply("Użytkownik nie jest zapisany na liście.");
                 }
@@ -423,9 +429,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
     try {
         if (!interaction.isButton()) return;
 
-        const message = await interaction.channel.messages.fetch(
-            client.embedMessageId,
-        );
+        let message;
+        try {
+            message = await interaction.channel.messages.fetch(
+                client.embedMessageId,
+            );
+        } catch (error) {
+            console.error("Failed to fetch message:", error);
+            return interaction.reply({
+                content: "Wystąpił błąd podczas próby pobrania wiadomości.",
+                ephemeral: true,
+            });
+        }
+
         const embed = message.embeds[0];
         const fields = embed.fields;
         const user = `<@${interaction.user.id}>`;
@@ -530,6 +546,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
     } catch (error) {
         console.error(error);
+        interaction.reply({
+            content: "Wystąpił nieoczekiwany błąd.",
+            ephemeral: true,
+        });
     }
 });
 
@@ -555,6 +575,21 @@ async function removeUserFromList(message, userId) {
         return true;
     } else {
         return false;
+    }
+}
+function saveRaidLists() {
+    const data = {
+        priorityChannels: Array.from(priorityChannels),
+        embedMessageId: client.embedMessageId,
+    };
+    fs.writeFileSync('raidLists.json', JSON.stringify(data), 'utf-8');
+}
+function loadRaidLists() {
+    if (fs.existsSync('raidLists.json')) {
+        const data = fs.readFileSync('raidLists.json', 'utf-8');
+        const parsed = JSON.parse(data);
+        priorityChannels = new Set(parsed.priorityChannels);
+        client.embedMessageId = parsed.embedMessageId;
     }
 }
 
@@ -619,6 +654,7 @@ async function checkAndMoveReserves(message, channel, checkReservedEmojis = fals
                     await message.channel.send({
                         content: `${nextReserveUser.split(' ')[0]} trafiasz na główną listę!`,
                     });
+                    saveRaidLists(); // Save after moving reserves
                 }
             }
         }
