@@ -37,7 +37,7 @@ const priorityEmojis = [
     { id: "1095004662832300042", name: "archsp3" },
     { id: "1095004747955712166", name: "archsp4" },
     { id: "1095004811168071710", name: "archsp5" },
-    { id: "1095004811168071710", name: "archsp6" },
+    { id: "1095004890213920890", name: "archsp6" },
     { id: "1095004995700662354", name: "archsp7" },
     { id: "1095005054529966181", name: "archsp8" },
     { id: "1095005137229066410", name: "archsp9" },
