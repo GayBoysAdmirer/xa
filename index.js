@@ -24,7 +24,7 @@ const client = new Client({
 
 // Przechowywanie menedżerów i priorytetowych kanałów
 const raidManagers = new Map();
-const priorityChannels = new Set();
+let priorityChannels = new Set();
 const priorityRoles = [
     "1094860225955242115",
     "1124781716700143717",
