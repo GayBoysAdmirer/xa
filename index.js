@@ -11,6 +11,7 @@ const {
     ChannelType,
 } = require("discord.js");
 const fs = require("fs");
+const { v4: uuidv4 } = require("uuid");
 
 const app = express();
 const client = new Client({
@@ -23,7 +24,8 @@ const client = new Client({
 
 // Przechowywanie menedżerów i priorytetowych kanałów
 const raidManagers = new Map();
-const priorityChannels = new Set();
+let priorityChannels = new Set();
+client.raids = new Map();
 const priorityRoles = [
     "1094860225955242115",
     "1124781716700143717",
@@ -121,7 +123,19 @@ client.once("ready", () => {
     loadRaidManagers();
     loadRaidLists(); // Load raid lists when bot starts
 });
+client.on("channelDelete", async (channel) => {
+    // Sprawdź, czy kanał jest na liście priorytetowych kanałów
+    if (priorityChannels.has(channel.id)) {
+        priorityChannels.delete(channel.id); // Usuń kanał z priorytetowych kanałów
+    }
 
+    // Usuń raid związany z usuniętym kanałem
+    const raids = Array.from(client.raids.values()).filter(raid => raid.channelId !== channel.id);
+    client.raids = new Map(raids.map(raid => [raid.channelId, raid]));
+
+    // Zapisz zmiany do pliku raidLists.json
+    saveRaidLists();
+});
 
 client.on("messageCreate", async (message) => {
     try {
@@ -135,34 +149,32 @@ client.on("messageCreate", async (message) => {
             const raidDay = args[2].replace(/"/g, "");
             const raidTime = args[3].replace(/"/g, "");
             const positions = parseInt(args[4]);
-            const akt = isPriorityRaid ? args[5]?.replace(/"/g, "") : null; // Nowy argument akt tylko dla !prioraid
+            const akt = isPriorityRaid ? args[5]?.replace(/"/g, "") : null;
 
             const channelName = `${raidName}-${raidDay}-${raidTime}`
                 .replace(/\s+/g, "-")
                 .toLowerCase();
             const formattedRaidName = raidName.toUpperCase();
 
-            // Ustawienie kategorii tylko dla !prioraid na priorytetowym serwerze
             let parentId;
             if (isPriorityRaid && message.guild.id === priorityServerId) {
                 if (akt === "a8") {
-                    parentId = "1199378967300419725"; // ID kategorii dla "a8"
+                    parentId = "1199378967300419725";
                 } else if (akt === "pollu") {
-                    parentId = "1126289273780441190"; // ID kategorii dla "pollu"
+                    parentId = "1126289273780441190";
                 } else if (akt === "arma") {
-                    parentId = "1126289273780441190"; // ID kategorii dla "arma"
+                    parentId = "1126289273780441190";
                 } else if (akt === "carma") {
-                    parentId = "1139537965111054496"; // ID kategorii dla "carma"
+                    parentId = "1139537965111054496";
                 } else {
-                    parentId = "1094734625298976899"; // Domyślne ID kategorii dla priorytetowego serwera
+                    parentId = "1094734625298976899";
                 }
             }
 
-            // Tworzenie nowego kanału
             const raidChannel = await message.guild.channels.create({
                 name: channelName,
                 type: ChannelType.GuildText,
-                parent: parentId || undefined, // Ustawienie kategorii tylko dla priorytetowych kanałów
+                parent: parentId || undefined,
                 permissionOverwrites: [
                     {
                         id: message.guild.id,
@@ -192,11 +204,10 @@ client.on("messageCreate", async (message) => {
                     `**Channel:** 5\n\n` +
                     `**Wymagania/Requirements:** C80 with huge damage, C90\n\n` +
                     `<:emoji1:1115315303283441814> <:emoji2:1115315272350453820> <:emoji3:1165642749110919178>\n\n` +
-                    `---\n` // Dodana linia oddzielająca
+                    `---\n`
                 )
                 .setColor(0xff0000);
 
-            // Ustawienie pozycji na podstawie typu raidu
             if (akt === "arma") {
                 for (let i = 1; i <= positions - 2; i++) {
                     embed.addFields({
@@ -209,17 +220,14 @@ client.on("messageCreate", async (message) => {
                     {
                         name: `${positions - 1}. (WK)`,
                         value: "\u200B",
-                        inline: false,
                     },
                     {
                         name: `${positions}. (CRUSS)`,
                         value: "\u200B",
-                        inline: false,
                     },
                     {
                         name: `Rezerwowi/Reserves:`,
                         value: "\u200B",
-                        inline: false,
                     }
                 );
             } else if (akt === "pollu") {
@@ -227,29 +235,24 @@ client.on("messageCreate", async (message) => {
                     embed.addFields({
                         name: `${i}.`,
                         value: "\u200B",
-                        inline: false,
                     });
                 }
                 embed.addFields(
                     {
                         name: `${positions - 2}. (WK)`,
                         value: "\u200B",
-                        inline: false,
                     },
                     {
                         name: `${positions - 1}. (CRUSS)`,
                         value: "\u200B",
-                        inline: false,
                     },
                     {
                         name: `${positions}. (SERKER)`,
                         value: "\u200B",
-                        inline: false,
                     },
                     {
                         name: `Rezerwowi/Reserves:`,
                         value: "\u200B",
-                        inline: false,
                     }
                 );
             } else {
@@ -257,14 +260,12 @@ client.on("messageCreate", async (message) => {
                     embed.addFields({
                         name: `${i}.`,
                         value: "\u200B",
-                        inline: false,
                     });
                 }
                 embed.addFields(
                     {
                         name: `Rezerwowi/Reserves:`,
                         value: "\u200B",
-                        inline: false,
                     }
                 );
             }
@@ -279,7 +280,7 @@ client.on("messageCreate", async (message) => {
                 const row = new ActionRowBuilder();
                 for (let j = 0; j < 5; j++) {
                     const index = i * 5 + j;
-                    if (index >= emojis.length) break; // Sprawdzenie zakresu
+                    if (index >= emojis.length) break;
 
                     row.addComponents(
                         new ButtonBuilder()
@@ -294,7 +295,6 @@ client.on("messageCreate", async (message) => {
                 }
             }
 
-            // Przycisk "Wypisz"
             const outRow = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId("out")
@@ -304,7 +304,19 @@ client.on("messageCreate", async (message) => {
             );
 
             const embedMessage = await raidChannel.send({ embeds: [embed] });
-            client.embedMessageId = embedMessage.id;
+            const raidId = uuidv4();
+            const raid = {
+                id: raidId,
+                channelId: raidChannel.id,
+                messageId: embedMessage.id,
+                name: raidName,
+                date: raidDay,
+                time: raidTime,
+                positions,
+                isPriorityRaid,
+                akt,
+            };
+            client.raids.set(raidChannel.id, raid);
             saveRaidLists();
 
             for (const row of actionRows) {
@@ -315,8 +327,6 @@ client.on("messageCreate", async (message) => {
             await raidChannel.send({
                 content: `Prio for <@&1094860225955242115>, <@&1165383754211131473>, <@&1124781716700143717> up to 12h before raid.`,
             });
-
-            client.embedMessageId = embedMessage.id;
         } else if (message.content.startsWith("!addmanager")) {
             const args = message.content.split(" ");
             const userId = args[1].replace(/[<@!>]/g, "");
@@ -353,19 +363,27 @@ client.on("messageCreate", async (message) => {
 
             if (isRaidManager(message.guild.id, message.author.id)) {
                 const raidChannel = message.channel;
-                const raidMessage = await raidChannel.messages.fetch(
-                    client.embedMessageId,
-                );
-                const success = await removeUserFromList(raidMessage, userId);
-                if (success) {
-                    message.reply(
-                        `Użytkownik <@${userId}> został usunięty z listy.`,
-                    );
-                    saveRaidLists(); // Save after removing a user from the list
-                } else {
-                    message.reply("Użytkownik nie jest zapisany na liście.");
+                const raid = client.raids.get(raidChannel.id);
+                if (!raid) {
+                    return message.reply("Nie znaleziono raidu dla tego kanału.");
                 }
-                await checkAndMoveReserves(raidMessage, raidChannel);
+
+                try {
+                    const raidMessage = await raidChannel.messages.fetch(raid.messageId);
+                    const success = await removeUserFromList(raidMessage, userId);
+                    if (success) {
+                        message.reply(
+                            `Użytkownik <@${userId}> został usunięty z listy.`,
+                        );
+                        saveRaidLists();
+                    } else {
+                        message.reply("Użytkownik nie jest zapisany na liście.");
+                    }
+                    await checkAndMoveReserves(raidMessage, raidChannel);
+                } catch (error) {
+                    console.error("Failed to fetch message:", error);
+                    message.reply("Wystąpił błąd podczas próby pobrania wiadomości.");
+                }
             } else {
                 message.reply(
                     "Nie masz uprawnień do usuwania użytkowników z listy.",
@@ -383,40 +401,80 @@ client.on("messageCreate", async (message) => {
                 "Priorytet został usunięty. Teraz każdy może się zapisać. <@&1096804534409494598>",
             );
         } else if (message.content.startsWith("!alt")) {
-            const args = message.content.split(" ");
+            const args = message.content.match(/"[^"]+"|[^\s]+/g);
             const nick = args[1];
-            const value = args[2];
+            const value = args.slice(2).join(" ");
 
             if (isRaidManager(message.guild.id, message.author.id)) {
                 const raidChannel = message.channel;
-                const raidMessage = await raidChannel.messages.fetch(
-                    client.embedMessageId,
-                );
-                const embed = raidMessage.embeds[0];
-                const fields = embed.fields;
+                const raid = client.raids.get(raidChannel.id);
+                if (!raid) {
+                    return message.reply("Nie znaleziono raidu dla tego kanału.");
+                }
 
-                let emptyFieldIndex = -1;
+                try {
+                    const raidMessage = await raidChannel.messages.fetch(raid.messageId);
+                    const embed = raidMessage.embeds[0];
+                    const fields = embed.fields;
 
-                for (let i = 0; i < fields.length; i++) {
-                    if (fields[i].value === "\u200B" && emptyFieldIndex === -1) {
-                        emptyFieldIndex = i;
+                    let emptyFieldIndex = -1;
+
+                    for (let i = 0; i < fields.length; i++) {
+                        if (fields[i].value === "\u200B" && emptyFieldIndex === -1) {
+                            emptyFieldIndex = i;
+                        }
                     }
-                }
 
-                if (emptyFieldIndex !== -1) {
-                    fields[emptyFieldIndex].value = `${nick} (${value})`;
-                    await raidMessage.edit({ embeds: [embed] });
-                    message.reply(
-                        `Postać ${nick} (${value}) została dodana do listy.`,
-                    );
-                } else {
-                    message.reply("Brak wolnych miejsc na liście.");
+                    if (emptyFieldIndex !== -1) {
+                        fields[emptyFieldIndex].value = `${nick} ${value}`;
+                        await raidMessage.edit({ embeds: [embed] });
+                        message.reply(
+                            `Postać ${nick} ${value} została dodana do listy.`,
+                        );
+                    } else {
+                        message.reply("Brak wolnych miejsc na liście.");
+                    }
+                    await checkAndMoveReserves(raidMessage, raidChannel);
+                } catch (error) {
+                    console.error("Failed to fetch message:", error);
+                    message.reply("Wystąpił błąd podczas próby pobrania wiadomości.");
                 }
-                await checkAndMoveReserves(raidMessage, raidChannel);
             } else {
                 message.reply(
                     "Nie masz uprawnień do ręcznego dodawania postaci.",
                 );
+            }
+        } else if (message.content.startsWith("!removeplayer")) {
+            const args = message.content.split(" ");
+            const position = parseInt(args[1]);
+
+            if (isRaidManager(message.guild.id, message.author.id)) {
+                const raidChannel = message.channel;
+                const raid = client.raids.get(raidChannel.id);
+                if (!raid) {
+                    return message.reply("Nie znaleziono raidu dla tego kanału.");
+                }
+
+                try {
+                    const raidMessage = await raidChannel.messages.fetch(raid.messageId);
+                    const embed = raidMessage.embeds[0];
+                    const fields = embed.fields;
+
+                    if (position > 0 && position <= fields.length) {
+                        fields[position - 1].value = "\u200B";
+                        await raidMessage.edit({ embeds: [embed] });
+                        message.reply(`Pozycja ${position} została usunięta z listy.`);
+                        await checkAndMoveReserves(raidMessage, raidChannel);
+                        saveRaidLists(); // Save after removing a position from the list
+                    } else {
+                        message.reply("Nieprawidłowa pozycja.");
+                    }
+                } catch (error) {
+                    console.error("Failed to fetch message:", error);
+                    message.reply("Wystąpił błąd podczas próby pobrania wiadomości.");
+                }
+            } else {
+                message.reply("Nie masz uprawnień do usuwania pozycji z listy.");
             }
         }
     } catch (error) {
@@ -430,9 +488,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         let message;
         try {
-            message = await interaction.channel.messages.fetch(
-                client.embedMessageId,
-            );
+            const raid = client.raids.get(interaction.channelId);
+            if (!raid) {
+                throw new Error("Raid data not found for this channel");
+            }
+            message = await interaction.channel.messages.fetch(raid.messageId);
         } catch (error) {
             console.error("Failed to fetch message:", error);
             return interaction.reply({
@@ -486,6 +546,9 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 fields[userFieldIndex].value += ` <:${emoji.name}:${emoji.id}>`;
                 await message.edit({ embeds: [embed] });
                 await interaction.deferUpdate();
+                await interaction.channel.send({
+                    content: `${user} został zapisany!`,
+                });
 
                 // Sprawdź, czy użytkownik na liście rezerwowej dodał zarezerwowaną emotkę
                 await checkAndMoveReserves(message, interaction.channel, true);
@@ -520,7 +583,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
                         content: `${user} został zapisany!`,
                     });
                 } else {
-                    // Dodanie do rezerwowych
                     const reserveField = fields.find(field => field.name === 'Rezerwowi/Reserves:');
                     reserveField.value += `\n${user} <:${emoji.name}:${emoji.id}>`;
                 }
@@ -535,7 +597,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 await interaction.channel.send({
                     content: `${user} wypisał się! Znajdź zastępstwo jeżeli wypisałeś się 6 godzin przed maratonem.`,
                 });
-                saveRaidLists(); // Save after user opts out
             } else {
                 await interaction.reply({
                     content: "Nie jesteś zapisany!",
@@ -577,19 +638,23 @@ async function removeUserFromList(message, userId) {
         return false;
     }
 }
+
 function saveRaidLists() {
     const data = {
         priorityChannels: Array.from(priorityChannels),
-        embedMessageId: client.embedMessageId,
+        raids: Array.from(client.raids.values()),
     };
-    fs.writeFileSync('raidLists.json', JSON.stringify(data), 'utf-8');
+    fs.writeFileSync("raidLists.json", JSON.stringify(data, null, 2), "utf-8");
 }
+
 function loadRaidLists() {
-    if (fs.existsSync('raidLists.json')) {
-        const data = fs.readFileSync('raidLists.json', 'utf-8');
+    if (fs.existsSync("raidLists.json")) {
+        const data = fs.readFileSync("raidLists.json", "utf-8");
         const parsed = JSON.parse(data);
-        parsed.priorityChannels.forEach(channelId => priorityChannels.add(channelId));
-        client.embedMessageId = parsed.embedMessageId;
+        priorityChannels = new Set(parsed.priorityChannels);
+        parsed.raids.forEach(raid => {
+            client.raids.set(raid.channelId, raid);
+        });
     }
 }
 

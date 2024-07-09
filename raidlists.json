@@ -1,0 +1,15 @@
+{
+  "priorityChannels": [],
+  "raids": [
+    {
+      "id": "d9fe8163-90e4-4a0f-bca1-51d01a2741sca",
+      "channelId": "1259991337613262949",
+      "messageId": "1259991339123085356"
+    },
+    {
+      "id": "d9fe8163-90e4-4a0f-bca1-51d01a532741sca",
+      "channelId": "1259990002583076905",
+      "messageId": "1259990004030247033"
+    }
+  ]
+}
